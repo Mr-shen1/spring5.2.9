@@ -24,6 +24,20 @@ import javax.servlet.http.HttpServletResponse;
 import org.springframework.lang.Nullable;
 
 /**
+ * 从request中解析出Locale，LocaleResolver有两个用处：
+ * 1、在ViewResolver解析视图的时候，
+ * 2，使用到国际化资源或者主题的时候，主要使用RequestContext的getMessage和getThemeMessage方法，在<spring:message>标签中就是使用RequestContext，
+ * 		先调用getMessageSource然后内部调用getMessage方法，可以看MessageTag
+ *
+ * 在很多应用场景里有很多人为设置语言的操作，此步骤在进行实现的时候，不需要在controller中修改Locale,而是通过Interceptor来进行实现
+ * 例如:LocaleChangeInterceptor,可以通过http://localhost:8080?locale=zh_CN来进行操作
+ * <mvc:interceptors>
+ *     <mvc:interceptor>
+ *         <mvc:mapping path="/*"/>
+ *         <bean class="org.springframe.wen.servlet.i18n.LocaleChangeInterceptor></bean>
+ *     </mvc:interceptor>
+ * </mvc:interceptors>
+ *
  * Interface for web-based locale resolution strategies that allows for
  * both locale resolution via the request and locale modification via
  * request and response.
@@ -54,6 +68,8 @@ import org.springframework.lang.Nullable;
 public interface LocaleResolver {
 
 	/**
+	 * 从请求中，解析出要使用的语言，例如，请求投中的Accept-Language
+	 *
 	 * Resolve the current locale via the given request.
 	 * Can return a default locale as fallback in any case.
 	 * @param request the request to resolve the locale for
@@ -62,6 +78,8 @@ public interface LocaleResolver {
 	Locale resolveLocale(HttpServletRequest request);
 
 	/**
+	 * 设置请求所使用的语言
+	 *
 	 * Set the current locale to the given one.
 	 * @param request the request to be used for locale modification
 	 * @param response the response to be used for locale modification

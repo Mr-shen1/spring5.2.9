@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,6 @@
 
 package org.springframework.context.annotation;
 
-import java.lang.annotation.Annotation;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.regex.Pattern;
-
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
@@ -32,15 +24,14 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.ResourceLoader;
-import org.springframework.core.type.filter.AbstractTypeHierarchyTraversingFilter;
-import org.springframework.core.type.filter.AnnotationTypeFilter;
-import org.springframework.core.type.filter.AspectJTypeFilter;
-import org.springframework.core.type.filter.AssignableTypeFilter;
-import org.springframework.core.type.filter.RegexPatternTypeFilter;
-import org.springframework.core.type.filter.TypeFilter;
+import org.springframework.core.type.filter.*;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
+
+import java.lang.annotation.Annotation;
+import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * Parser for the @{@link ComponentScan} annotation.
@@ -73,15 +64,18 @@ class ComponentScanAnnotationParser {
 	}
 
 
-	public Set<BeanDefinitionHolder> parse(AnnotationAttributes componentScan, String declaringClass) {
+	public Set<BeanDefinitionHolder> parse(AnnotationAttributes componentScan, final String declaringClass) {
+		// 创建对应的扫描类
 		ClassPathBeanDefinitionScanner scanner = new ClassPathBeanDefinitionScanner(this.registry,
 				componentScan.getBoolean("useDefaultFilters"), this.environment, this.resourceLoader);
 
+		// 获取@ComponentScan的参数，并进行参数的设置工作
 		Class<? extends BeanNameGenerator> generatorClass = componentScan.getClass("nameGenerator");
 		boolean useInheritedGenerator = (BeanNameGenerator.class == generatorClass);
 		scanner.setBeanNameGenerator(useInheritedGenerator ? this.beanNameGenerator :
 				BeanUtils.instantiateClass(generatorClass));
 
+		// 获取scopedProxy属性
 		ScopedProxyMode scopedProxyMode = componentScan.getEnum("scopedProxy");
 		if (scopedProxyMode != ScopedProxyMode.DEFAULT) {
 			scanner.setScopedProxyMode(scopedProxyMode);
@@ -91,31 +85,37 @@ class ComponentScanAnnotationParser {
 			scanner.setScopeMetadataResolver(BeanUtils.instantiateClass(resolverClass));
 		}
 
+		// 获取resourcePattern属性
 		scanner.setResourcePattern(componentScan.getString("resourcePattern"));
 
+		// 获取includeFilters属性
 		for (AnnotationAttributes filter : componentScan.getAnnotationArray("includeFilters")) {
 			for (TypeFilter typeFilter : typeFiltersFor(filter)) {
 				scanner.addIncludeFilter(typeFilter);
 			}
 		}
+		// 获取excludeFilters属性
 		for (AnnotationAttributes filter : componentScan.getAnnotationArray("excludeFilters")) {
 			for (TypeFilter typeFilter : typeFiltersFor(filter)) {
 				scanner.addExcludeFilter(typeFilter);
 			}
 		}
 
+		// 获取lazyInit属性
 		boolean lazyInit = componentScan.getBoolean("lazyInit");
 		if (lazyInit) {
 			scanner.getBeanDefinitionDefaults().setLazyInit(true);
 		}
 
 		Set<String> basePackages = new LinkedHashSet<>();
+		// 获取basePackages属性
 		String[] basePackagesArray = componentScan.getStringArray("basePackages");
 		for (String pkg : basePackagesArray) {
 			String[] tokenized = StringUtils.tokenizeToStringArray(this.environment.resolvePlaceholders(pkg),
 					ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS);
 			Collections.addAll(basePackages, tokenized);
 		}
+		// 获取basePackageClasses属性
 		for (Class<?> clazz : componentScan.getClassArray("basePackageClasses")) {
 			basePackages.add(ClassUtils.getPackageName(clazz));
 		}
@@ -129,6 +129,7 @@ class ComponentScanAnnotationParser {
 				return declaringClass.equals(className);
 			}
 		});
+		// 开始执行扫描，最终的扫描器是ClassPathBeanDefinitionScanner
 		return scanner.doScan(StringUtils.toStringArray(basePackages));
 	}
 
